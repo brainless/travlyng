@@ -1,0 +1,4 @@
+/target/
+travel_planner.db
+travel_planner.db-journal
+cargo_run.log
