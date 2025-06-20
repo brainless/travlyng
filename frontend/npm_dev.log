@@ -1,0 +1,23 @@
+
+> vite-template-solid@0.0.0 dev
+> vite
+
+Port 3000 is in use, trying another one...
+Port 3001 is in use, trying another one...
+Port 3002 is in use, trying another one...
+
+  VITE v6.3.5  ready in 417 ms
+
+  ➜  Local:   http://localhost:3003/
+  ➜  Network: use --host to expose
+5:15:31 PM [vite] (client) Pre-transform error: Failed to load PostCSS config (searchPath: /app/frontend): [ReferenceError] module is not defined in ES module scope
+This file is being treated as an ES module because it has a '.js' file extension and '/app/frontend/package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+ReferenceError: module is not defined in ES module scope
+This file is being treated as an ES module because it has a '.js' file extension and '/app/frontend/package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+    at file:///app/frontend/postcss.config.js?t=1750439720067:1:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)
+    at async req$3 (file:///app/frontend/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:11658:13)
+    at async Object.search (file:///app/frontend/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:11400:23)
+  Plugin: vite:css
+  File: /app/frontend/src/index.css
