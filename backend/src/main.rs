@@ -11,190 +11,31 @@ mod travel_plans;
 #[cfg(test)]
 mod tests {
     // Explicitly import necessary items
-    use crate::db::AppState;
-    use crate::restaurants::{
-        self, Restaurant, // Import module for handlers, and struct
-    };
-    use crate::places; // Import places module for its handlers
+    // use crate::db::AppState; // No longer needed if init_test_db_app is removed or doesn't use it directly
+    // use crate::restaurants::{self, Restaurant}; // Moved
+    // use crate::places; // No longer needed as no tests remain in main.rs
 
-    use actix_web::{test, web, App as ActixApp, http::StatusCode};
-    use serde_json::json;
-    use std::fs;
-    use std::sync::Mutex;
-    use rusqlite::Connection; // Import Connection for init_test_db_app
+    // use actix_web::{test, web, App as ActixApp, http::StatusCode}; // Partially moved or covered by specific needs
+    // use serde_json::json; // Moved
+    // use std::fs; // Moved (as part of init_test_db_app)
+    // use std::sync::Mutex; // Moved (as part of init_test_db_app)
+    // use rusqlite::Connection; // Moved (as part of init_test_db_app)
 
-    // Helper function to initialize the app with an in-memory DB for tests
-    async fn init_test_db_app() -> ActixApp<
-        impl actix_web::dev::ServiceFactory<
-            actix_web::dev::ServiceRequest,
-            Config = (),
-            Response = actix_web::dev::ServiceResponse,
-            Error = actix_web::Error,
-            InitError = (),
-        >,
-    > {
-        // For tests, schema.sql is expected to be in the root of the 'backend' crate
-        let conn = Connection::open_in_memory().expect("Failed to open in-memory DB for test");
-        let schema = fs::read_to_string("schema.sql")
-            .expect("Failed to read schema.sql for tests. Ensure it's in backend/ directory.");
-        conn.execute_batch(&schema).expect("Failed to execute schema on in-memory DB");
+    // If init_test_db_app specific to main.rs tests is needed later, it should be redefined here.
+    // For now, assuming it was primarily for restaurant tests.
+    // If there are other tests in main.rs that need a similar setup,
+    // they might need their own version or a shared one if applicable.
 
-        let app_state = web::Data::new(AppState { db: Mutex::new(conn) });
+    // Example: If there were tests for `places` that needed init_test_db_app,
+    // that function would need to be kept or re-created here,
+    // and its App setup would include `places` routes.
+    // For now, the original init_test_db_app is removed as it was tailored for restaurant tests.
 
-        ActixApp::new()
-            .app_data(app_state.clone())
-            .service(
-                web::scope("/restaurants")
-                    .route("", web::get().to(restaurants::get_restaurants))
-                    .route("", web::post().to(restaurants::add_restaurant))
-                    .route("/{id}", web::get().to(restaurants::get_restaurant))
-                    .route("/{id}", web::put().to(restaurants::update_restaurant))
-                    .route("/{id}", web::delete().to(restaurants::delete_restaurant)),
-            )
-            .service(web::scope("/places").route("", web::get().to(places::get_places)))
-    }
-
-    #[actix_web::test]
-    async fn test_add_restaurant() {
-        let app_service = test::init_service(init_test_db_app().await).await;
-        let new_restaurant_payload = json!({
-            "name": "Test Cafe",
-            "description": "A lovely place for coffee",
-            "location": "123 Test St"
-        });
-
-        let req = test::TestRequest::post()
-            .uri("/restaurants")
-            .set_json(&new_restaurant_payload)
-            .to_request();
-
-        let resp = test::call_service(&app_service, req).await;
-        assert_eq!(resp.status(), StatusCode::CREATED, "Expected 201 Created");
-
-        let body: Restaurant = test::read_body_json(resp).await;
-        assert_eq!(body.name, "Test Cafe");
-        assert_eq!(body.description.as_deref(), Some("A lovely place for coffee"));
-        assert!(body.id.is_some(), "Expected created restaurant to have an ID");
-    }
-
-    #[actix_web::test]
-    async fn test_get_restaurants_empty_and_then_one() {
-        let app_service = test::init_service(init_test_db_app().await).await;
-
-        let req_empty = test::TestRequest::get().uri("/restaurants").to_request();
-        let resp_empty = test::call_service(&app_service, req_empty).await;
-        assert_eq!(resp_empty.status(), StatusCode::OK);
-        let body_empty: Vec<Restaurant> = test::read_body_json(resp_empty).await;
-        assert!(body_empty.is_empty(), "Expected empty list of restaurants initially");
-
-        let new_restaurant_payload = json!({
-            "name": "Pizza Place",
-            "description": "Best pizza in town",
-            "location": "456 Main Ave"
-        });
-        let add_req = test::TestRequest::post()
-            .uri("/restaurants")
-            .set_json(&new_restaurant_payload)
-            .to_request();
-        let add_resp = test::call_service(&app_service, add_req).await;
-        assert_eq!(add_resp.status(), StatusCode::CREATED);
-        let added_restaurant: Restaurant = test::read_body_json(add_resp).await;
-
-        let req_filled = test::TestRequest::get().uri("/restaurants").to_request();
-        let resp_filled = test::call_service(&app_service, req_filled).await;
-        assert_eq!(resp_filled.status(), StatusCode::OK);
-        let body_filled: Vec<Restaurant> = test::read_body_json(resp_filled).await;
-        assert_eq!(body_filled.len(), 1, "Expected one restaurant after adding");
-        assert_eq!(body_filled[0].name, "Pizza Place");
-        assert_eq!(body_filled[0].id, added_restaurant.id);
-    }
-
-    #[actix_web::test]
-    async fn test_get_specific_restaurant() {
-        let app_service = test::init_service(init_test_db_app().await).await;
-
-        let new_restaurant_payload = json!({"name": "Sushi Spot", "description": "Fresh sushi", "location": "789 Bay Rd"});
-        let add_req = test::TestRequest::post().uri("/restaurants").set_json(&new_restaurant_payload).to_request();
-        let add_resp = test::call_service(&app_service, add_req).await;
-        assert_eq!(add_resp.status(), StatusCode::CREATED);
-        let added_restaurant: Restaurant = test::read_body_json(add_resp).await;
-        let restaurant_id = added_restaurant.id.unwrap();
-
-        let get_req = test::TestRequest::get().uri(&format!("/restaurants/{}", restaurant_id)).to_request();
-        let get_resp = test::call_service(&app_service, get_req).await;
-        assert_eq!(get_resp.status(), StatusCode::OK);
-        let fetched_restaurant: Restaurant = test::read_body_json(get_resp).await;
-        assert_eq!(fetched_restaurant.id, Some(restaurant_id));
-        assert_eq!(fetched_restaurant.name, "Sushi Spot");
-
-        let get_non_existent_req = test::TestRequest::get().uri("/restaurants/9999").to_request();
-        let get_non_existent_resp = test::call_service(&app_service, get_non_existent_req).await;
-        assert_eq!(get_non_existent_resp.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[actix_web::test]
-    async fn test_update_restaurant() {
-        let app_service = test::init_service(init_test_db_app().await).await;
-
-        let initial_payload = json!({"name": "Old Grill", "description": "Steaks and stuff", "location": "1st Street"});
-        let add_req = test::TestRequest::post().uri("/restaurants").set_json(&initial_payload).to_request();
-        let add_resp = test::call_service(&app_service, add_req).await;
-        assert_eq!(add_resp.status(), StatusCode::CREATED);
-        let added_restaurant: Restaurant = test::read_body_json(add_resp).await;
-        let restaurant_id = added_restaurant.id.unwrap();
-
-        let updated_payload = json!({
-            "name": "New Vegan Grill",
-            "description": "Plant-based goodness",
-            "location": "2nd Avenue"
-        });
-        let update_req = test::TestRequest::put()
-            .uri(&format!("/restaurants/{}", restaurant_id))
-            .set_json(&updated_payload)
-            .to_request();
-        let update_resp = test::call_service(&app_service, update_req).await;
-        assert_eq!(update_resp.status(), StatusCode::OK);
-        let updated_restaurant_body: Restaurant = test::read_body_json(update_resp).await;
-        assert_eq!(updated_restaurant_body.name, "New Vegan Grill");
-        assert_eq!(updated_restaurant_body.description.as_deref(), Some("Plant-based goodness"));
-        assert_eq!(updated_restaurant_body.id, Some(restaurant_id));
-
-        let get_req = test::TestRequest::get().uri(&format!("/restaurants/{}", restaurant_id)).to_request();
-        let get_resp = test::call_service(&app_service, get_req).await;
-        let fetched_restaurant: Restaurant = test::read_body_json(get_resp).await;
-        assert_eq!(fetched_restaurant.name, "New Vegan Grill");
-
-        let update_non_existent_req = test::TestRequest::put()
-            .uri("/restaurants/8888")
-            .set_json(&updated_payload)
-            .to_request();
-        let update_non_existent_resp = test::call_service(&app_service, update_non_existent_req).await;
-        assert_eq!(update_non_existent_resp.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[actix_web::test]
-    async fn test_delete_restaurant() {
-        let app_service = test::init_service(init_test_db_app().await).await;
-
-        let payload = json!({"name": "To Be Deleted", "description": "Short lived", "location": "Nowhere"});
-        let add_req = test::TestRequest::post().uri("/restaurants").set_json(&payload).to_request();
-        let add_resp = test::call_service(&app_service, add_req).await;
-        assert_eq!(add_resp.status(), StatusCode::CREATED);
-        let added_restaurant: Restaurant = test::read_body_json(add_resp).await;
-        let restaurant_id = added_restaurant.id.unwrap();
-
-        let delete_req = test::TestRequest::delete().uri(&format!("/restaurants/{}", restaurant_id)).to_request();
-        let delete_resp = test::call_service(&app_service, delete_req).await;
-        assert_eq!(delete_resp.status(), StatusCode::NO_CONTENT);
-
-        let get_req = test::TestRequest::get().uri(&format!("/restaurants/{}", restaurant_id)).to_request();
-        let get_resp = test::call_service(&app_service, get_req).await;
-        assert_eq!(get_resp.status(), StatusCode::NOT_FOUND);
-
-        let delete_non_existent_req = test::TestRequest::delete().uri("/restaurants/7777").to_request();
-        let delete_non_existent_resp = test::call_service(&app_service, delete_non_existent_req).await;
-        assert_eq!(delete_non_existent_resp.status(), StatusCode::NOT_FOUND);
-    }
+    // Any tests specific to main.rs or other modules (like places, if tested from main) would remain here.
+    // For instance, if there was a test_get_places, it would be here.
+    // e.g.
+    // #[actix_web::test]
+    // async fn test_get_places_example() { ... }
 }
 
 #[actix_web::main]
