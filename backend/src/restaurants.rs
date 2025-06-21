@@ -32,11 +32,37 @@ pub async fn get_restaurants(data: web::Data<AppState>) -> impl Responder {
     };
 
     let mut restaurants = Vec::new();
-    for res in restaurant_iter {
-        restaurants.push(res.unwrap());
+    for res_result in restaurant_iter {
+        match res_result {
+            Ok(res) => restaurants.push(res),
+            Err(e) => {
+                eprintln!("Error fetching restaurant: {}", e);
+            }
+        }
     }
 
-    HttpResponse::Ok().json(restaurants)
+    let total_count: Result<i64, _> = conn.query_row(
+        "SELECT COUNT(*) FROM restaurants",
+        [],
+        |row| row.get(0),
+    );
+
+    match total_count {
+        Ok(count) => {
+            let range_header = if restaurants.is_empty() {
+                format!("restaurants 0-0/{}", count)
+            } else {
+                format!("restaurants 0-{}/{}", restaurants.len() -1, count)
+            };
+            HttpResponse::Ok()
+                .insert_header(("Content-Range", range_header))
+                .json(restaurants)
+        }
+        Err(e) => {
+            eprintln!("Failed to get total count for restaurants: {}", e);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
 }
 
 pub async fn add_restaurant(

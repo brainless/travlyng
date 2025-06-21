@@ -31,11 +31,37 @@ pub async fn get_accommodations(data: web::Data<AppState>) -> impl Responder {
     };
 
     let mut accommodations = Vec::new();
-    for acc in accommodation_iter {
-        accommodations.push(acc.unwrap());
+    for acc_result in accommodation_iter {
+        match acc_result {
+            Ok(acc) => accommodations.push(acc),
+            Err(e) => {
+                eprintln!("Error fetching accommodation: {}", e);
+            }
+        }
     }
 
-    HttpResponse::Ok().json(accommodations)
+    let total_count: Result<i64, _> = conn.query_row(
+        "SELECT COUNT(*) FROM accommodations",
+        [],
+        |row| row.get(0),
+    );
+
+    match total_count {
+        Ok(count) => {
+            let range_header = if accommodations.is_empty() {
+                format!("accommodations 0-0/{}", count)
+            } else {
+                format!("accommodations 0-{}/{}", accommodations.len() -1, count)
+            };
+            HttpResponse::Ok()
+                .insert_header(("Content-Range", range_header))
+                .json(accommodations)
+        }
+        Err(e) => {
+            eprintln!("Failed to get total count for accommodations: {}", e);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
 }
 
 pub async fn add_accommodation(

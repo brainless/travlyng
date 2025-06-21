@@ -50,16 +50,39 @@ pub async fn get_plans(data: web::Data<AppState>) -> impl Responder {
         .unwrap();
 
     let mut plans = Vec::new();
-    for plan in plan_iter {
-        match plan {
+    for plan_result in plan_iter {
+        match plan_result {
             Ok(p) => plans.push(p),
             Err(e) => {
                 eprintln!("Error fetching plan: {}", e);
-                return HttpResponse::InternalServerError().finish();
+                // Optionally skip this plan or return an error for the whole request
             }
         }
     }
-    HttpResponse::Ok().json(plans)
+
+    let total_count: Result<i64, _> = conn.query_row(
+        "SELECT COUNT(*) FROM travel_plans",
+        [],
+        |row| row.get(0),
+    );
+
+    match total_count {
+        Ok(count) => {
+            let range_header = if plans.is_empty() {
+                // The resource is "plans" as per admin/src/App.tsx
+                format!("plans 0-0/{}", count)
+            } else {
+                format!("plans 0-{}/{}", plans.len() -1, count)
+            };
+            HttpResponse::Ok()
+                .insert_header(("Content-Range", range_header))
+                .json(plans)
+        }
+        Err(e) => {
+            eprintln!("Failed to get total count for travel_plans: {}", e);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
 }
 
 pub async fn add_plan(data: web::Data<AppState>, plan_data: web::Json<TravelPlan>) -> impl Responder {
