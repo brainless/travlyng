@@ -22,7 +22,8 @@ import {
     Button,
     useRedirect,
     useNotify,
-    required
+    required,
+    RaRecord
 } from 'react-admin';
 import { RichTextInput } from 'ra-input-rich-text';
 import { Link } from 'react-router-dom';
@@ -54,7 +55,6 @@ const PlanItemEditButton = () => {
     }
     return (
         <EditButton
-            basePath="/plan_items" // Correct base path for the resource
             record={record} // Pass the current record to the edit button
         />
     );
@@ -206,20 +206,26 @@ export const PlanItemCreate = (props: any) => {
     });
 
     return (
-        <Create {...props} title="Create Plan Item" transform={transform}
-            onSuccess={(record) => {
+        <Create
+            {...props}
+            title="Create Plan Item"
+            transform={transform}
+            record={{ plan_id: initialPlanId }} // Pass initialValues as record to Create
+            onSuccess={(record: RaRecord) => {
                 notify('Plan item created');
                 redirect('show', 'plans', record?.plan_id); // Redirect to the parent plan's show view or edit
             }}
         >
-            <SimpleForm initialValues={{ plan_id: initialPlanId }}>
+            <SimpleForm>
                 {/* If initialPlanId is undefined, user must select/enter a plan_id */}
                 {initialPlanId ? (
+                    // Note: ReferenceInput's initialValue might be redundant if Create's record pre-fills it.
+                    // However, explicit initialValue on ReferenceInput can be useful for display before the form fully initializes.
                     <ReferenceInput source="plan_id" reference="plans" initialValue={initialPlanId} disabled>
                          <SelectInput optionText="name" />
                     </ReferenceInput>
                 ) : (
-                    <ReferenceInput source="plan_id" reference="plans" validate={required()}>
+                    <ReferenceInput source="plan_id" reference="plans" validate={required() as any}>
                         <SelectInput optionText="name" />
                     </ReferenceInput>
                 )}
