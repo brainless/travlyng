@@ -1,0 +1,33 @@
+/* Basic App-wide styles */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* React Admin specific global styles */
+
+/* Ensure RichTextInput (TipTap editor) has a reasonable minimum height */
+.tiptap.ProseMirror {
+  min-height: 150px;
+  border: 1px solid #c0c0c0; /* Basic border to see the editor bounds */
+  border-radius: 4px;
+  padding: 8px;
+}
+
+/* Adjustments for React Admin layout if needed */
+/* Example: Ensure SimpleForm has some padding */
+/* .RaSimpleForm-root {
+  padding: 1em;
+} */
+
+/* Customizations for Datagrid */
+/* .RaDatagrid-root {
+  border: 1px solid #e0e0e0;
+}
+.RaDatagrid-headerCell {
+  background-color: #f5f5f5;
+} */
