@@ -1,9 +1,10 @@
 use actix_web::{web, HttpResponse, Responder};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use crate::db::AppState;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct Restaurant {
     pub id: Option<i64>,
     pub name: String,
@@ -12,6 +13,13 @@ pub struct Restaurant {
 }
 
 // Handler functions for Restaurants
+#[utoipa::path(
+    get,
+    path = "/restaurants",
+    responses(
+        (status = 200, description = "List all restaurants", body = [Restaurant])
+    )
+)]
 pub async fn get_restaurants(data: web::Data<AppState>) -> impl Responder {
     let conn = data.db.lock().unwrap();
     let mut stmt = match conn.prepare("SELECT id, name, description, location FROM restaurants") {
@@ -39,6 +47,15 @@ pub async fn get_restaurants(data: web::Data<AppState>) -> impl Responder {
     HttpResponse::Ok().json(restaurants)
 }
 
+#[utoipa::path(
+    post,
+    path = "/restaurants",
+    request_body = Restaurant,
+    responses(
+        (status = 201, description = "Restaurant created successfully", body = Restaurant),
+        (status = 500, description = "Failed to insert restaurant")
+    )
+)]
 pub async fn add_restaurant(
     data: web::Data<AppState>,
     res: web::Json<Restaurant>,
@@ -64,6 +81,18 @@ pub async fn add_restaurant(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/restaurants/{id}",
+    params(
+        ("id" = i64, Path, description = "Restaurant id")
+    ),
+    responses(
+        (status = 200, description = "Found restaurant", body = Restaurant),
+        (status = 404, description = "Restaurant not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn get_restaurant(data: web::Data<AppState>, path: web::Path<i64>) -> impl Responder {
     let res_id = path.into_inner();
     let conn = data.db.lock().unwrap();
@@ -86,6 +115,19 @@ pub async fn get_restaurant(data: web::Data<AppState>, path: web::Path<i64>) -> 
     }
 }
 
+#[utoipa::path(
+    put,
+    path = "/restaurants/{id}",
+    params(
+        ("id" = i64, Path, description = "Restaurant id")
+    ),
+    request_body = Restaurant,
+    responses(
+        (status = 200, description = "Restaurant updated successfully", body = Restaurant),
+        (status = 404, description = "Restaurant not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn update_restaurant(
     data: web::Data<AppState>,
     path: web::Path<i64>,
@@ -115,6 +157,18 @@ pub async fn update_restaurant(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/restaurants/{id}",
+    params(
+        ("id" = i64, Path, description = "Restaurant id")
+    ),
+    responses(
+        (status = 204, description = "Restaurant deleted successfully"),
+        (status = 404, description = "Restaurant not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn delete_restaurant(data: web::Data<AppState>, path: web::Path<i64>) -> impl Responder {
     let res_id = path.into_inner();
     let conn = data.db.lock().unwrap();

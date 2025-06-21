@@ -1,9 +1,10 @@
 use actix_web::{web, HttpResponse, Responder};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use crate::db::AppState;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct Accommodation {
     pub id: Option<i64>,
     pub name: String,
@@ -11,6 +12,13 @@ pub struct Accommodation {
     pub location: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/accommodations",
+    responses(
+        (status = 200, description = "List all accommodations", body = [Accommodation])
+    )
+)]
 pub async fn get_accommodations(data: web::Data<AppState>) -> impl Responder {
     let conn = data.db.lock().unwrap();
     let mut stmt = match conn.prepare("SELECT id, name, description, location FROM accommodations") {
@@ -38,6 +46,15 @@ pub async fn get_accommodations(data: web::Data<AppState>) -> impl Responder {
     HttpResponse::Ok().json(accommodations)
 }
 
+#[utoipa::path(
+    post,
+    path = "/accommodations",
+    request_body = Accommodation,
+    responses(
+        (status = 201, description = "Accommodation created successfully", body = Accommodation),
+        (status = 500, description = "Failed to insert accommodation")
+    )
+)]
 pub async fn add_accommodation(
     data: web::Data<AppState>,
     acc: web::Json<Accommodation>,
@@ -63,6 +80,18 @@ pub async fn add_accommodation(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/accommodations/{id}",
+    params(
+        ("id" = i64, Path, description = "Accommodation id")
+    ),
+    responses(
+        (status = 200, description = "Found accommodation", body = Accommodation),
+        (status = 404, description = "Accommodation not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn get_accommodation(data: web::Data<AppState>, path: web::Path<i64>) -> impl Responder {
     let acc_id = path.into_inner();
     let conn = data.db.lock().unwrap();
@@ -85,6 +114,19 @@ pub async fn get_accommodation(data: web::Data<AppState>, path: web::Path<i64>) 
     }
 }
 
+#[utoipa::path(
+    put,
+    path = "/accommodations/{id}",
+    params(
+        ("id" = i64, Path, description = "Accommodation id")
+    ),
+    request_body = Accommodation,
+    responses(
+        (status = 200, description = "Accommodation updated successfully", body = Accommodation),
+        (status = 404, description = "Accommodation not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn update_accommodation(
     data: web::Data<AppState>,
     path: web::Path<i64>,
@@ -114,6 +156,18 @@ pub async fn update_accommodation(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/accommodations/{id}",
+    params(
+        ("id" = i64, Path, description = "Accommodation id")
+    ),
+    responses(
+        (status = 204, description = "Accommodation deleted successfully"),
+        (status = 404, description = "Accommodation not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn delete_accommodation(data: web::Data<AppState>, path: web::Path<i64>) -> impl Responder {
     let acc_id = path.into_inner();
     let conn = data.db.lock().unwrap();

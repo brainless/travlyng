@@ -9,7 +9,9 @@ pub struct AppState {
 
 pub fn init_db() -> Result<Connection> {
     let conn = Connection::open("travel_planner.db")?;
-    let schema = fs::read_to_string("schema.sql") // Corrected path
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let schema_path = std::path::Path::new(manifest_dir).join("schema.sql");
+    let schema = fs::read_to_string(schema_path)
         .expect("Should have been able to read the file");
     conn.execute_batch(&schema)?;
     println!("Database initialized successfully.");

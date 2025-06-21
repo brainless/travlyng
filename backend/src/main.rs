@@ -1,4 +1,6 @@
 use actix_web::{web, App, HttpServer};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 // Declare modules
 mod accommodations;
@@ -7,6 +9,47 @@ mod places;
 mod restaurants;
 mod search;
 mod travel_plans;
+
+use crate::accommodations::{Accommodation};
+use crate::places::{Place};
+use crate::restaurants::{Restaurant};
+use crate::travel_plans::{TravelPlan, PlanItem, PlanItemRequest};
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        places::get_places,
+        places::add_place,
+        places::get_place,
+        places::update_place,
+        places::delete_place,
+        restaurants::get_restaurants,
+        restaurants::add_restaurant,
+        restaurants::get_restaurant,
+        restaurants::update_restaurant,
+        restaurants::delete_restaurant,
+        accommodations::get_accommodations,
+        accommodations::add_accommodation,
+        accommodations::get_accommodation,
+        accommodations::update_accommodation,
+        accommodations::delete_accommodation,
+        travel_plans::get_plans,
+        travel_plans::add_plan,
+        travel_plans::get_plan,
+        travel_plans::update_plan,
+        travel_plans::delete_plan,
+        travel_plans::add_plan_item,
+        travel_plans::update_plan_item,
+        travel_plans::delete_plan_item,
+    ),
+    components(
+        schemas(Place, Restaurant, Accommodation, TravelPlan, PlanItem, PlanItemRequest)
+    ),
+    tags(
+        (name = "Rust Backend API", description = "API for managing travel plans and related entities.")
+    )
+)]
+struct ApiDoc;
 
 #[cfg(test)]
 mod tests {
@@ -219,6 +262,10 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(app_state.clone())
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-doc/openapi.json", ApiDoc::openapi()),
+            )
             .service(
                 web::scope("/places")
                     .route("", web::get().to(places::get_places))

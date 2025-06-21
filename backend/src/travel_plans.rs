@@ -1,9 +1,10 @@
 use actix_web::{web, HttpResponse, Responder};
 use rusqlite::params; // Removed Result as it's not directly used here, Connection is used via AppState
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use crate::db::AppState;
 
-#[derive(Serialize, Deserialize, Debug, Clone)] // Added Clone
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)] // Added Clone
 pub struct PlanItem {
     pub id: Option<i64>,
     pub plan_id: i64,
@@ -13,7 +14,7 @@ pub struct PlanItem {
     pub notes: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct PlanItemRequest { // For POST/PUT requests for PlanItem
     pub entity_type: String,
     pub entity_id: i64,
@@ -21,7 +22,7 @@ pub struct PlanItemRequest { // For POST/PUT requests for PlanItem
     pub notes: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct TravelPlan {
     pub id: Option<i64>,
     pub name: String,
@@ -32,6 +33,13 @@ pub struct TravelPlan {
 
 // --- TravelPlan Handlers ---
 
+#[utoipa::path(
+    get,
+    path = "/plans",
+    responses(
+        (status = 200, description = "List all travel plans", body = [TravelPlan])
+    )
+)]
 pub async fn get_plans(data: web::Data<AppState>) -> impl Responder {
     let conn = data.db.lock().unwrap();
     let mut stmt = conn
@@ -62,6 +70,15 @@ pub async fn get_plans(data: web::Data<AppState>) -> impl Responder {
     HttpResponse::Ok().json(plans)
 }
 
+#[utoipa::path(
+    post,
+    path = "/plans",
+    request_body = TravelPlan,
+    responses(
+        (status = 201, description = "Travel plan created successfully", body = TravelPlan),
+        (status = 500, description = "Failed to insert travel plan")
+    )
+)]
 pub async fn add_plan(data: web::Data<AppState>, plan_data: web::Json<TravelPlan>) -> impl Responder {
     let conn = data.db.lock().unwrap();
     let mut plan = plan_data.into_inner();
@@ -81,6 +98,18 @@ pub async fn add_plan(data: web::Data<AppState>, plan_data: web::Json<TravelPlan
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/plans/{id}",
+    params(
+        ("id" = i64, Path, description = "Travel plan id")
+    ),
+    responses(
+        (status = 200, description = "Found travel plan", body = TravelPlan),
+        (status = 404, description = "Travel plan not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn get_plan(data: web::Data<AppState>, path: web::Path<i64>) -> impl Responder {
     let plan_id = path.into_inner();
     let conn = data.db.lock().unwrap();
@@ -139,6 +168,19 @@ pub async fn get_plan(data: web::Data<AppState>, path: web::Path<i64>) -> impl R
     HttpResponse::Ok().json(plan)
 }
 
+#[utoipa::path(
+    put,
+    path = "/plans/{id}",
+    params(
+        ("id" = i64, Path, description = "Travel plan id")
+    ),
+    request_body = TravelPlan,
+    responses(
+        (status = 200, description = "Travel plan updated successfully", body = TravelPlan),
+        (status = 404, description = "Travel plan not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn update_plan(
     data: web::Data<AppState>,
     path: web::Path<i64>,
@@ -170,6 +212,18 @@ pub async fn update_plan(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/plans/{id}",
+    params(
+        ("id" = i64, Path, description = "Travel plan id")
+    ),
+    responses(
+        (status = 204, description = "Travel plan deleted successfully"),
+        (status = 404, description = "Travel plan not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn delete_plan(data: web::Data<AppState>, path: web::Path<i64>) -> impl Responder {
     let plan_id = path.into_inner();
     let conn = data.db.lock().unwrap();
@@ -188,6 +242,19 @@ pub async fn delete_plan(data: web::Data<AppState>, path: web::Path<i64>) -> imp
 
 // --- PlanItem Handlers ---
 
+#[utoipa::path(
+    post,
+    path = "/plans/{plan_id}/items",
+    params(
+        ("plan_id" = i64, Path, description = "Plan id to add item to")
+    ),
+    request_body = PlanItemRequest,
+    responses(
+        (status = 201, description = "Plan item created successfully", body = PlanItem),
+        (status = 404, description = "Plan not found"),
+        (status = 500, description = "Failed to insert plan item")
+    )
+)]
 pub async fn add_plan_item(
     data: web::Data<AppState>,
     path: web::Path<i64>, // plan_id
@@ -231,6 +298,20 @@ pub async fn add_plan_item(
     }
 }
 
+#[utoipa::path(
+    put,
+    path = "/plans/{plan_id}/items/{item_id}",
+    params(
+        ("plan_id" = i64, Path, description = "Plan id"),
+        ("item_id" = i64, Path, description = "Plan item id")
+    ),
+    request_body = PlanItemRequest,
+    responses(
+        (status = 200, description = "Plan item updated successfully", body = PlanItem),
+        (status = 404, description = "Plan item not found"),
+        (status = 500, description = "Failed to update plan item")
+    )
+)]
 pub async fn update_plan_item(
     data: web::Data<AppState>,
     path: web::Path<(i64, i64)>, // (plan_id, item_id)
@@ -267,6 +348,19 @@ pub async fn update_plan_item(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/plans/{plan_id}/items/{item_id}",
+    params(
+        ("plan_id" = i64, Path, description = "Plan id"),
+        ("item_id" = i64, Path, description = "Plan item id")
+    ),
+    responses(
+        (status = 204, description = "Plan item deleted successfully"),
+        (status = 404, description = "Plan item not found"),
+        (status = 500, description = "Failed to delete plan item")
+    )
+)]
 pub async fn delete_plan_item(
     data: web::Data<AppState>,
     path: web::Path<(i64, i64)>, // (plan_id, item_id)

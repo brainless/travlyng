@@ -1,10 +1,11 @@
 use actix_web::{web, HttpResponse, Responder};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
  // Although Connection is wrapped in Mutex in AppState, individual handlers might need Mutex for other shared resources if requirements change. It's also good for consistency.
 use crate::db::AppState;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct Place {
     pub id: Option<i64>,
     pub name: String,
@@ -12,6 +13,13 @@ pub struct Place {
     pub location: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/places",
+    responses(
+        (status = 200, description = "List all places", body = [Place])
+    )
+)]
 pub async fn get_places(data: web::Data<AppState>) -> impl Responder {
     let conn = data.db.lock().unwrap();
     let mut stmt = match conn.prepare("SELECT id, name, description, location FROM places") {
@@ -39,6 +47,15 @@ pub async fn get_places(data: web::Data<AppState>) -> impl Responder {
     HttpResponse::Ok().json(places)
 }
 
+#[utoipa::path(
+    post,
+    path = "/places",
+    request_body = Place,
+    responses(
+        (status = 201, description = "Place created successfully", body = Place),
+        (status = 500, description = "Failed to insert place")
+    )
+)]
 pub async fn add_place(data: web::Data<AppState>, place: web::Json<Place>) -> impl Responder {
     let conn = data.db.lock().unwrap();
     let mut new_place = place.into_inner();
@@ -61,6 +78,18 @@ pub async fn add_place(data: web::Data<AppState>, place: web::Json<Place>) -> im
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/places/{id}",
+    params(
+        ("id" = i64, Path, description = "Place id")
+    ),
+    responses(
+        (status = 200, description = "Found place", body = Place),
+        (status = 404, description = "Place not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn get_place(data: web::Data<AppState>, path: web::Path<i64>) -> impl Responder {
     let place_id = path.into_inner();
     let conn = data.db.lock().unwrap();
@@ -83,6 +112,19 @@ pub async fn get_place(data: web::Data<AppState>, path: web::Path<i64>) -> impl 
     }
 }
 
+#[utoipa::path(
+    put,
+    path = "/places/{id}",
+    params(
+        ("id" = i64, Path, description = "Place id")
+    ),
+    request_body = Place,
+    responses(
+        (status = 200, description = "Place updated successfully", body = Place),
+        (status = 404, description = "Place not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn update_place(
     data: web::Data<AppState>,
     path: web::Path<i64>,
@@ -112,6 +154,18 @@ pub async fn update_place(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/places/{id}",
+    params(
+        ("id" = i64, Path, description = "Place id")
+    ),
+    responses(
+        (status = 204, description = "Place deleted successfully"),
+        (status = 404, description = "Place not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn delete_place(data: web::Data<AppState>, path: web::Path<i64>) -> impl Responder {
     let place_id = path.into_inner();
     let conn = data.db.lock().unwrap();
