@@ -1,4 +1,5 @@
 use actix_web::{web, App, HttpServer};
+use actix_cors::Cors;
 
 // Declare modules
 mod accommodations;
@@ -58,7 +59,16 @@ async fn main() -> std::io::Result<()> {
     println!("Starting server at http://127.0.0.1:8080");
 
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:3000") // Assuming admin app runs on port 3000
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+            .allowed_headers(vec![actix_web::http::header::AUTHORIZATION, actix_web::http::header::ACCEPT, actix_web::http::header::CONTENT_TYPE])
+            .expose_headers(vec![actix_web::http::header::CONTENT_RANGE])
+            .supports_credentials()
+            .max_age(3600);
+
         App::new()
+            .wrap(cors)
             .app_data(app_state.clone())
             .service(
                 web::scope("/places")

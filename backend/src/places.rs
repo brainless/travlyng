@@ -32,11 +32,39 @@ pub async fn get_places(data: web::Data<AppState>) -> impl Responder {
     };
 
     let mut places = Vec::new();
-    for place in place_iter {
-        places.push(place.unwrap());
+    for place_result in place_iter {
+        match place_result {
+            Ok(place) => places.push(place),
+            Err(e) => {
+                eprintln!("Error fetching place: {}", e);
+                // Depending on desired behavior, you might continue or return an error
+                // For now, let's assume we skip problematic rows
+            }
+        }
     }
 
-    HttpResponse::Ok().json(places)
+    let total_count: Result<i64, _> = conn.query_row(
+        "SELECT COUNT(*) FROM places",
+        [],
+        |row| row.get(0),
+    );
+
+    match total_count {
+        Ok(count) => {
+            let range_header = if places.is_empty() {
+                format!("places 0-0/{}", count)
+            } else {
+                format!("places 0-{}/{}", places.len() -1, count)
+            };
+            HttpResponse::Ok()
+                .insert_header(("Content-Range", range_header))
+                .json(places)
+        }
+        Err(e) => {
+            eprintln!("Failed to get total count for places: {}", e);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
 }
 
 pub async fn add_place(data: web::Data<AppState>, place: web::Json<Place>) -> impl Responder {
